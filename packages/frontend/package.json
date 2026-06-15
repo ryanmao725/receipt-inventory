@@ -9,7 +9,6 @@
     "test": "echo \"no tests\" && exit 0"
   },
   "dependencies": {
-    "@aws-amplify/ui-react": "^6.1.0",
     "@mantine/core": "^7.17.8",
     "@mantine/hooks": "^7.17.8",
     "@receipt-scanner/shared": "workspace:*",

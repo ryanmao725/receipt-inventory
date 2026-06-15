@@ -1,11 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Amplify } from "aws-amplify";
-import { Authenticator } from "@aws-amplify/ui-react";
-import "@aws-amplify/ui-react/styles.css";
 import { ColorSchemeScript, MantineProvider, createTheme } from "@mantine/core";
 import "@mantine/core/styles.css";
-import App from "./App.js";
+import AuthGate from "./auth/AuthGate.js";
 
 Amplify.configure({
   Auth: {
@@ -22,7 +20,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorSchemeScript defaultColorScheme="light" />
     <MantineProvider theme={theme} defaultColorScheme="light">
-      <Authenticator>{() => <App />}</Authenticator>
+      <AuthGate />
     </MantineProvider>
   </React.StrictMode>,
 );
