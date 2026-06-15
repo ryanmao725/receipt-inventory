@@ -2,6 +2,8 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import type {
   ListInventoryResponse,
   ListRecipesResponse,
+  CreateUploadUrlResponse,
+  ScanReceiptResponse,
 } from "@receipt-scanner/shared";
 
 const BASE = import.meta.env.VITE_API_URL as string;
@@ -22,12 +24,29 @@ export async function getRecipes(): Promise<ListRecipesResponse> {
   return res.json();
 }
 
-export async function uploadReceipt(file: File): Promise<Response> {
-  // TODO: switch to presigned S3 upload; scaffold posts the raw file.
-  const headers = await authHeaders();
-  return fetch(`${BASE}/receipts`, {
+export async function getUploadUrl(): Promise<CreateUploadUrlResponse> {
+  const res = await fetch(`${BASE}/receipts/upload-url`, {
     method: "POST",
-    headers: { authorization: (headers as Record<string, string>).authorization },
-    body: file,
+    headers: await authHeaders(),
   });
+  if (!res.ok) throw new Error(`Could not get upload URL: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
+  // Presigned URL — no auth header; the URL itself authorizes the PUT.
+  const res = await fetch(uploadUrl, { method: "PUT", body: file });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+}
+
+export async function uploadReceipt(file: File): Promise<ScanReceiptResponse> {
+  const { uploadUrl, imageS3Key } = await getUploadUrl();
+  await uploadToS3(uploadUrl, file);
+  const res = await fetch(`${BASE}/receipts`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ imageS3Key }),
+  });
+  if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
+  return res.json();
 }

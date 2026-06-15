@@ -24,6 +24,14 @@ export class BackendStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      cors: [
+        {
+          // Browsers PUT receipt images directly via presigned URLs.
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: ["*"], // TODO: tighten to the CloudFront domain.
+          allowedHeaders: ["*"],
+        },
+      ],
     });
 
     const receiptsTable = new dynamodb.Table(this, "ReceiptsTable", {
@@ -99,6 +107,7 @@ export class BackendStack extends Stack {
 
     const integration = new HttpLambdaIntegration("ApiIntegration", apiFn);
     for (const route of [
+      { path: "/receipts/upload-url", methods: [HttpMethod.POST] },
       { path: "/receipts", methods: [HttpMethod.POST] },
       { path: "/inventory", methods: [HttpMethod.GET] },
       { path: "/inventory/{id}", methods: [HttpMethod.PATCH, HttpMethod.DELETE] },

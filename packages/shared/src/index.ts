@@ -53,3 +53,8 @@ export interface UpdateInventoryItemRequest {
 export interface ListRecipesResponse {
   recipes: Recipe[];
 }
+
+export interface CreateUploadUrlResponse {
+  uploadUrl: string;
+  imageS3Key: string;
+}

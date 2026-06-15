@@ -24,11 +24,14 @@ export function parseExpense(output: AnalyzeExpenseCommandOutput): ReceiptLineIt
         const fields = line.LineItemExpenseFields ?? [];
         const name = fields.find((f) => f.Type?.Text === "ITEM")?.ValueDetection?.Text;
         const priceText = fields.find((f) => f.Type?.Text === "PRICE")?.ValueDetection?.Text;
+        const quantityText = fields.find((f) => f.Type?.Text === "QUANTITY")?.ValueDetection?.Text;
         if (!name) continue;
-        // TODO: parse quantity/unit from EXPENSE_ROW fields; defaulting for scaffold.
+        const parsedQty = quantityText ? Number.parseFloat(quantityText) : Number.NaN;
+        const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+        // Textract AnalyzeExpense has no reliable unit-of-measure field; unit stays "unit".
         items.push({
           name,
-          quantity: 1,
+          quantity,
           unit: "unit",
           price: priceText ? Number.parseFloat(priceText) : 0,
         });

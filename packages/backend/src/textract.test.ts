@@ -30,4 +30,51 @@ describe("parseExpense", () => {
   it("returns an empty array when there are no documents", () => {
     expect(parseExpense({} as AnalyzeExpenseCommandOutput)).toEqual([]);
   });
+
+  it("parses the QUANTITY field when present", () => {
+    const output = {
+      ExpenseDocuments: [
+        {
+          LineItemGroups: [
+            {
+              LineItems: [
+                {
+                  LineItemExpenseFields: [
+                    { Type: { Text: "ITEM" }, ValueDetection: { Text: "Apples" } },
+                    { Type: { Text: "PRICE" }, ValueDetection: { Text: "4.00" } },
+                    { Type: { Text: "QUANTITY" }, ValueDetection: { Text: "3" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnalyzeExpenseCommandOutput;
+    expect(parseExpense(output)).toEqual([
+      { name: "Apples", quantity: 3, unit: "unit", price: 4 },
+    ]);
+  });
+
+  it("defaults quantity to 1 for missing or unparseable values", () => {
+    const output = {
+      ExpenseDocuments: [
+        {
+          LineItemGroups: [
+            {
+              LineItems: [
+                {
+                  LineItemExpenseFields: [
+                    { Type: { Text: "ITEM" }, ValueDetection: { Text: "Milk" } },
+                    { Type: { Text: "QUANTITY" }, ValueDetection: { Text: "abc" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnalyzeExpenseCommandOutput;
+    expect(parseExpense(output)[0].quantity).toBe(1);
+  });
 });

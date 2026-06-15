@@ -3,9 +3,12 @@ import type {
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 import { getUserId } from "./auth.js";
-import { listItems, updateItem, deleteItem } from "./inventory.js";
+import { listItems, updateItem, deleteItem, lineItemsToInventory, putItems } from "./inventory.js";
 import { suggestRecipes } from "./recipes.js";
 import { getSpoonacularApiKey } from "./config.js";
+import { analyzeReceipt } from "./textract.js";
+import { buildReceipt, putReceipt } from "./receipts.js";
+import { createUploadUrl, isOwnedKey, parseReceiptId } from "./upload.js";
 
 export interface RouteInput {
   method: string;
@@ -48,9 +51,22 @@ export async function route(req: RouteInput): Promise<RouteResult> {
     const recipes = await suggestRecipes(items.map((i) => i.name), apiKey);
     return json(200, { recipes });
   }
+  if (req.method === "POST" && req.path === "/receipts/upload-url") {
+    const { uploadUrl, imageS3Key } = await createUploadUrl(req.userId);
+    return json(200, { uploadUrl, imageS3Key });
+  }
   if (req.method === "POST" && req.path === "/receipts") {
-    // TODO: presigned-upload + Textract + persistence flow wired in Task 10 follow-up.
-    return json(501, { message: "Not implemented in scaffold" });
+    const imageS3Key: string = JSON.parse(req.body ?? "{}").imageS3Key ?? "";
+    if (!imageS3Key) return json(400, { message: "imageS3Key is required" });
+    if (!isOwnedKey(req.userId, imageS3Key)) return json(403, { message: "Forbidden" });
+    const receiptId = parseReceiptId(imageS3Key);
+    const bucket = process.env.RECEIPTS_BUCKET ?? "";
+    const lineItems = await analyzeReceipt(bucket, imageS3Key);
+    const receipt = buildReceipt({ userId: req.userId, receiptId, imageS3Key, lineItems });
+    await putReceipt(receipt);
+    const addedItems = lineItemsToInventory(req.userId, receiptId, lineItems);
+    await putItems(addedItems);
+    return json(200, { receipt, addedItems });
   }
   return json(404, { message: "Not found" });
 }
