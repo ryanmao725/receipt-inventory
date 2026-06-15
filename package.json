@@ -8,6 +8,7 @@
     "synth": "pnpm --filter infra synth"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "typescript": "^5.4.0"
   },
   "packageManager": "pnpm@9.0.0"
