@@ -9,6 +9,9 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION,
 };
 
-new BackendStack(app, "BackendStack", { stackName: "receipt-scanner-backend", env });
-new FrontendStack(app, "FrontendStack", { stackName: "receipt-scanner-frontend", env });
-new GithubOidcStack(app, "GithubOidcStack", { stackName: "receipt-scanner-github-oidc", env });
+// Construct IDs match the CloudFormation stack names so `cdk deploy receipt-scanner-*`
+// (used by the workflows, README, and CLI) selects the right stack. The CDK stack
+// selector matches the construct ID, not the stackName property.
+new BackendStack(app, "receipt-scanner-backend", { env });
+new FrontendStack(app, "receipt-scanner-frontend", { env });
+new GithubOidcStack(app, "receipt-scanner-github-oidc", { env });
