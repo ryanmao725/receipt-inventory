@@ -1,0 +1,55 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "packages/frontend/**"
+      - "packages/shared/**"
+      - "packages/infra/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @receipt-scanner/shared build
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Deploy frontend stack
+        run: pnpm --filter infra exec cdk deploy receipt-scanner-frontend --require-approval never
+      - name: Read backend outputs into .env
+        run: |
+          STACK=receipt-scanner-backend
+          get() { aws cloudformation describe-stacks --stack-name "$STACK" --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          {
+            echo "VITE_API_URL=$(get ApiUrl)"
+            echo "VITE_USER_POOL_ID=$(get UserPoolId)"
+            echo "VITE_USER_POOL_CLIENT_ID=$(get UserPoolClientId)"
+            echo "VITE_AWS_REGION=$(get Region)"
+          } > packages/frontend/.env
+      - name: Build frontend
+        run: pnpm --filter @receipt-scanner/frontend build
+      - name: Sync to S3 and invalidate CloudFront
+        run: |
+          FE=receipt-scanner-frontend
+          getfe() { aws cloudformation describe-stacks --stack-name "$FE" --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          BUCKET=$(getfe SiteBucketName)
+          DIST=$(getfe DistributionId)
+          aws s3 sync packages/frontend/dist "s3://$BUCKET" --delete
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"

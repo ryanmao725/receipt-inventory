@@ -6,7 +6,7 @@ pnpm monorepo: scan receipts (Textract) → inventory (DynamoDB) → recipe sugg
 - `packages/shared` — shared TypeScript types
 - `packages/backend` — Lambda handlers + domain logic
 - `packages/frontend` — React + Vite SPA
-- `packages/infra` — AWS CDK app (single stack)
+- `packages/infra` — AWS CDK app (backend, frontend, and GitHub OIDC stacks)
 
 ## Develop
 ```bash
@@ -15,20 +15,38 @@ pnpm -r build
 pnpm -r test
 ```
 
-## Deploy
+## One-time setup (CI/CD via OIDC)
+
+Deploys run from GitHub Actions using OIDC (no long-lived AWS keys). Bootstrap once with admin credentials:
+
 ```bash
-# 1. Set the Spoonacular key (do not commit it)
+# 1. Bootstrap CDK in the target account/region
+pnpm --filter infra exec cdk bootstrap aws://<account>/<region>
+
+# 2. Deploy the OIDC provider + deploy role (one time, admin creds)
+pnpm --filter infra exec cdk deploy receipt-scanner-github-oidc --require-approval never
+# note the DeployRoleArn output
+
+# 3. Set the Spoonacular key (do not commit it)
 aws ssm put-parameter --name /receipt-scanner/spoonacular-api-key --type String --value YOUR_KEY --overwrite
+```
 
-# 2. Deploy infra (outputs ApiUrl, UserPoolId, UserPoolClientId, Region, SiteBucketName)
-pnpm --filter infra deploy
+Then add GitHub repository **Variables** (Settings → Secrets and variables → Actions → Variables):
+- `AWS_REGION` — e.g. `us-east-1`
+- `AWS_DEPLOY_ROLE_ARN` — the `DeployRoleArn` from step 2
 
-# 3. Configure the frontend from the stack outputs
-cp packages/frontend/.env.example packages/frontend/.env   # fill in the output values
+## Deploy
 
-# 4. Build the frontend and upload to the site bucket
-pnpm --filter @receipt-scanner/frontend build
-aws s3 sync packages/frontend/dist s3://<SiteBucketName> --delete
+Pushes to `master` deploy automatically:
+- Changes under `packages/backend`, `packages/shared`, or `packages/infra` → **deploy-backend** (`cdk deploy receipt-scanner-backend`).
+- Changes under `packages/frontend`, `packages/shared`, or `packages/infra` → **deploy-frontend** (`cdk deploy receipt-scanner-frontend`, then reads backend outputs into `.env`, builds, syncs to S3, invalidates CloudFront).
+
+Pull requests run **CI** (build, test, synth) only.
+
+Manual deploy (admin creds) is still possible:
+
+```bash
+pnpm --filter infra exec cdk deploy receipt-scanner-backend receipt-scanner-frontend --require-approval never
 ```
 
 ## Scaffold status
