@@ -68,7 +68,7 @@ export class BackendStack extends Stack {
         RECEIPTS_TABLE: receiptsTable.tableName,
         INVENTORY_TABLE: inventoryTable.tableName,
         RECEIPTS_BUCKET: receiptsBucket.bucketName,
-        SPOONACULAR_API_KEY: spoonacularParam.stringValue,
+        SPOONACULAR_PARAM_NAME: spoonacularParam.parameterName,
       },
       bundling: { format: undefined },
     });
@@ -76,6 +76,7 @@ export class BackendStack extends Stack {
     receiptsTable.grantReadWriteData(apiFn);
     inventoryTable.grantReadWriteData(apiFn);
     receiptsBucket.grantReadWrite(apiFn);
+    spoonacularParam.grantRead(apiFn);
     apiFn.addToRolePolicy(
       new PolicyStatement({
         actions: ["textract:AnalyzeExpense"],

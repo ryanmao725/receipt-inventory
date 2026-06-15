@@ -5,6 +5,7 @@ import type {
 import { getUserId } from "./auth.js";
 import { listItems, updateItem, deleteItem } from "./inventory.js";
 import { suggestRecipes } from "./recipes.js";
+import { getSpoonacularApiKey } from "./config.js";
 
 export interface RouteInput {
   method: string;
@@ -41,8 +42,9 @@ export async function route(req: RouteInput): Promise<RouteResult> {
     return json(200, { ok: true });
   }
   if (req.method === "GET" && req.path === "/recipes") {
+    const apiKey = await getSpoonacularApiKey();
+    if (!apiKey || apiKey === "REPLACE_ME") return json(200, { recipes: [] });
     const items = await listItems(req.userId);
-    const apiKey = process.env.SPOONACULAR_API_KEY ?? "";
     const recipes = await suggestRecipes(items.map((i) => i.name), apiKey);
     return json(200, { recipes });
   }
