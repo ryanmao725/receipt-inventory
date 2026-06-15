@@ -51,6 +51,7 @@ export async function updateItem(
   itemId: string,
   fields: Partial<Pick<InventoryItem, "name" | "quantity" | "unit">>,
 ): Promise<void> {
+  if (Object.keys(fields).length === 0) return;
   const sets = Object.keys(fields).map((k, i) => `#k${i} = :v${i}`);
   const names = Object.fromEntries(Object.keys(fields).map((k, i) => [`#k${i}`, k]));
   const values = Object.fromEntries(Object.values(fields).map((v, i) => [`:v${i}`, v]));
