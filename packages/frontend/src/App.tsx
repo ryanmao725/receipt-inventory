@@ -1,27 +1,59 @@
 import { useState } from "react";
 import { signOut } from "aws-amplify/auth";
+import {
+  ActionIcon,
+  Button,
+  Container,
+  Group,
+  Tabs,
+  Title,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from "@mantine/core";
 import Scan from "./pages/Scan.js";
 import Inventory from "./pages/Inventory.js";
 import Recipes from "./pages/Recipes.js";
 
-type Tab = "scan" | "inventory" | "recipes";
-
 export default function App() {
-  const [tab, setTab] = useState<Tab>("scan");
+  const [tab, setTab] = useState<string | null>("scan");
+  const { setColorScheme } = useMantineColorScheme();
+  const computed = useComputedColorScheme("light", { getInitialValueInEffect: true });
+  const toggleScheme = () => setColorScheme(computed === "dark" ? "light" : "dark");
+
   return (
-    <main style={{ fontFamily: "system-ui", maxWidth: 640, margin: "2rem auto" }}>
-      <header style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <h1 style={{ marginRight: "auto" }}>Receipt Scanner</h1>
-        <button onClick={() => signOut()}>Sign out</button>
-      </header>
-      <nav style={{ display: "flex", gap: 8, margin: "1rem 0" }}>
-        <button onClick={() => setTab("scan")}>Scan</button>
-        <button onClick={() => setTab("inventory")}>Inventory</button>
-        <button onClick={() => setTab("recipes")}>Recipes</button>
-      </nav>
-      {tab === "scan" && <Scan />}
-      {tab === "inventory" && <Inventory />}
-      {tab === "recipes" && <Recipes />}
-    </main>
+    <Container size="sm" py="xl">
+      <Group mb="lg">
+        <Title order={1} style={{ marginRight: "auto" }}>
+          Receipt Scanner
+        </Title>
+        <ActionIcon
+          onClick={toggleScheme}
+          variant="default"
+          size="lg"
+          aria-label="Toggle color scheme"
+        >
+          {computed === "dark" ? "☀" : "🌙"}
+        </ActionIcon>
+        <Button variant="default" onClick={() => signOut()}>
+          Sign out
+        </Button>
+      </Group>
+      <Tabs value={tab} onChange={setTab}>
+        <Tabs.List mb="md">
+          <Tabs.Tab value="scan">Scan</Tabs.Tab>
+          <Tabs.Tab value="inventory">Inventory</Tabs.Tab>
+          <Tabs.Tab value="recipes">Recipes</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="scan">
+          <Scan />
+        </Tabs.Panel>
+        <Tabs.Panel value="inventory">
+          <Inventory />
+        </Tabs.Panel>
+        <Tabs.Panel value="recipes">
+          <Recipes />
+        </Tabs.Panel>
+      </Tabs>
+    </Container>
   );
 }
