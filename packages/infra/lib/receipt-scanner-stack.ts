@@ -10,6 +10,8 @@ import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations
 import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -106,10 +108,31 @@ export class ReceiptScannerStack extends Stack {
       httpApi.addRoutes({ path: route.path, methods: route.methods, integration, authorizer });
     }
 
+    // --- Frontend hosting ---
+    const siteBucket = new s3.Bucket(this, "SiteBucket", {
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
+    const distribution = new cloudfront.Distribution(this, "SiteDistribution", {
+      defaultRootObject: "index.html",
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+      errorResponses: [
+        { httpStatus: 403, responseHttpStatus: 200, responsePagePath: "/index.html" },
+        { httpStatus: 404, responseHttpStatus: 200, responsePagePath: "/index.html" },
+      ],
+    });
+
     // --- Outputs (consumed by frontend build) ---
     new CfnOutput(this, "ApiUrl", { value: httpApi.apiEndpoint });
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", { value: userPoolClient.userPoolClientId });
     new CfnOutput(this, "Region", { value: this.region });
+    new CfnOutput(this, "SiteBucketName", { value: siteBucket.bucketName });
+    new CfnOutput(this, "SiteUrl", { value: `https://${distribution.distributionDomainName}` });
   }
 }

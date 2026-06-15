@@ -21,4 +21,8 @@ describe("ReceiptScannerStack", () => {
   it("creates an HTTP API", () => {
     template().resourceCountIs("AWS::ApiGatewayV2::Api", 1);
   });
+
+  it("creates a CloudFront distribution for the frontend", () => {
+    template().resourceCountIs("AWS::CloudFront::Distribution", 1);
+  });
 });
