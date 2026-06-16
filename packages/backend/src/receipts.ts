@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import type { Receipt, ReceiptLineItem } from "@receipt-scanner/shared";
+import { log } from "./log.js";
 
 const TABLE = process.env.RECEIPTS_TABLE ?? "";
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -29,4 +30,8 @@ export function buildReceipt(input: {
 
 export async function putReceipt(receipt: Receipt): Promise<void> {
   await doc.send(new PutCommand({ TableName: TABLE, Item: receipt }));
+  log.debug(
+    { receiptId: receipt.receiptId, total: receipt.total, itemCount: receipt.lineItems.length },
+    "receipt saved",
+  );
 }

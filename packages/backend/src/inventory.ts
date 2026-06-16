@@ -7,6 +7,7 @@ import {
   DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { InventoryItem, ReceiptLineItem } from "@receipt-scanner/shared";
+import { log } from "./log.js";
 
 const TABLE = process.env.INVENTORY_TABLE ?? "";
 const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -33,6 +34,7 @@ export function lineItemsToInventory(
 export async function putItems(items: InventoryItem[]): Promise<void> {
   // TODO: batch with BatchWriteCommand for >25 items.
   await Promise.all(items.map((item) => doc.send(new PutCommand({ TableName: TABLE, Item: item }))));
+  log.debug({ count: items.length }, "inventory items written");
 }
 
 export async function listItems(userId: string): Promise<InventoryItem[]> {

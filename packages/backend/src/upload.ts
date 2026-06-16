@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { CreateUploadUrlResponse } from "@receipt-scanner/shared";
+import { log } from "./log.js";
 
 const BUCKET = process.env.RECEIPTS_BUCKET ?? "";
 const s3 = new S3Client({});
@@ -39,5 +40,6 @@ export async function createUploadUrl(
   const receiptId = newId();
   const imageS3Key = buildImageKey(userId, receiptId);
   const uploadUrl = await presign(new PutObjectCommand({ Bucket: BUCKET, Key: imageS3Key }));
+  log.debug({ imageS3Key }, "presigned upload url issued");
   return { uploadUrl, imageS3Key };
 }

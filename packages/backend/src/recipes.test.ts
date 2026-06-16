@@ -30,4 +30,24 @@ describe("suggestRecipes", () => {
     expect(result).toEqual([]);
     expect(fetchFn).not.toHaveBeenCalled();
   });
+
+  it("throws a sanitized error (no apiKey/url) when fetch fails", async () => {
+    const apiKey = "super-secret-key";
+    // Simulate an undici-style error whose cause embeds the full request URL.
+    const fetchFn = vi.fn(async (input: string) => {
+      throw new Error(`fetch failed for ${input}`);
+    }) as unknown as typeof fetch;
+
+    await expect(suggestRecipes(["milk"], apiKey, fetchFn)).rejects.toThrow();
+    let err: Error | undefined;
+    try {
+      await suggestRecipes(["milk"], apiKey, fetchFn);
+    } catch (e) {
+      err = e as Error;
+    }
+    expect(err).toBeDefined();
+    expect(err!.message).not.toContain(apiKey);
+    expect(err!.message.toLowerCase()).not.toContain("apikey");
+    expect((err as Error & { cause?: unknown }).cause).toBeUndefined();
+  });
 });

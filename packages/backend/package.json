@@ -7,13 +7,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@receipt-scanner/shared": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.600.0",
-    "@aws-sdk/lib-dynamodb": "^3.600.0",
     "@aws-sdk/client-s3": "^3.600.0",
-    "@aws-sdk/client-textract": "^3.600.0",
     "@aws-sdk/client-ssm": "^3.600.0",
-    "@aws-sdk/s3-request-presigner": "^3.600.0"
+    "@aws-sdk/client-textract": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@receipt-scanner/shared": "workspace:*",
+    "pino": "^9.14.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",

@@ -77,6 +77,7 @@ export class BackendStack extends Stack {
         INVENTORY_TABLE: inventoryTable.tableName,
         RECEIPTS_BUCKET: receiptsBucket.bucketName,
         SPOONACULAR_PARAM_NAME: spoonacularParam.parameterName,
+        LOG_LEVEL: "info",
       },
       bundling: { format: undefined },
     });

@@ -4,15 +4,19 @@ import {
   type AnalyzeExpenseCommandOutput,
 } from "@aws-sdk/client-textract";
 import type { ReceiptLineItem } from "@receipt-scanner/shared";
+import { log } from "./log.js";
 
 const client = new TextractClient({});
 
 /** Calls Textract AnalyzeExpense on an S3 object and returns parsed line items. */
 export async function analyzeReceipt(bucket: string, key: string): Promise<ReceiptLineItem[]> {
+  log.debug({ bucket, key }, "textract analyze start");
   const output = await client.send(
     new AnalyzeExpenseCommand({ Document: { S3Object: { Bucket: bucket, Name: key } } }),
   );
-  return parseExpense(output);
+  const items = parseExpense(output);
+  log.debug({ itemCount: items.length }, "textract analyze complete");
+  return items;
 }
 
 /** Maps an AnalyzeExpense response into ReceiptLineItem[]. */

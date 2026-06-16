@@ -9,6 +9,7 @@ import { getSpoonacularApiKey } from "./config.js";
 import { analyzeReceipt } from "./textract.js";
 import { buildReceipt, putReceipt } from "./receipts.js";
 import { createUploadUrl, isOwnedKey, parseReceiptId } from "./upload.js";
+import { log, runWithLogContext } from "./log.js";
 
 export interface RouteInput {
   method: string;
@@ -22,6 +23,8 @@ export interface RouteResult {
   statusCode: number;
   body: string;
 }
+
+const JSON_HEADERS = { "content-type": "application/json" } as const;
 
 const json = (statusCode: number, data: unknown): RouteResult => ({
   statusCode,
@@ -80,12 +83,37 @@ export async function handler(
   } catch {
     userId = null;
   }
-  const res = await route({
-    method: event.requestContext.http.method,
-    path: event.requestContext.http.path,
-    userId,
-    body: event.body ?? null,
-    pathParams: event.pathParameters ?? {},
+
+  const requestId = event.requestContext.requestId;
+  const method = event.requestContext.http.method;
+  const path = event.requestContext.http.path;
+
+  return runWithLogContext({ requestId, method, path, userId }, async () => {
+    const start = Date.now();
+    log.info("request received");
+    if (userId === null) log.debug("unauthenticated request");
+
+    try {
+      const res = await route({
+        method,
+        path,
+        userId,
+        body: event.body ?? null,
+        pathParams: event.pathParameters ?? {},
+      });
+      log.info({ statusCode: res.statusCode, durationMs: Date.now() - start }, "request completed");
+      return {
+        statusCode: res.statusCode,
+        headers: JSON_HEADERS,
+        body: res.body,
+      };
+    } catch (err) {
+      log.error({ err, durationMs: Date.now() - start }, "request failed");
+      return {
+        statusCode: 500,
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ message: "Internal Server Error" }),
+      };
+    }
   });
-  return { statusCode: res.statusCode, headers: { "content-type": "application/json" }, body: res.body };
 }
