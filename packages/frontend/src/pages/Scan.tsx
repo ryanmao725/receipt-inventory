@@ -12,12 +12,14 @@ import {
   Title,
 } from "@mantine/core";
 import { uploadReceipt } from "../api.js";
+import CameraCapture from "../camera/CameraCapture.js";
 import type { ScanReceiptResponse } from "@receipt-scanner/shared";
 
 export default function Scan() {
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<ScanReceiptResponse | null>(null);
+  const [mode, setMode] = useState<"idle" | "camera">("idle");
 
   const handleFile = async (file: File | null) => {
     if (!file) return;
@@ -35,15 +37,29 @@ export default function Scan() {
     }
   };
 
+  const handleCapture = (file: File) => {
+    setMode("idle");
+    void handleFile(file);
+  };
+
   return (
     <Stack>
       <Title order={2}>Scan a receipt</Title>
-      <Group>
-        <FileButton onChange={handleFile} accept="image/*">
-          {(props) => <Button {...props}>Choose receipt image</Button>}
-        </FileButton>
-        {status === "working" && <Loader size="sm" />}
-      </Group>
+      {mode === "camera" ? (
+        <CameraCapture onCapture={handleCapture} onClose={() => setMode("idle")} />
+      ) : (
+        <Group>
+          <Button onClick={() => setMode("camera")}>Use camera</Button>
+          <FileButton onChange={handleFile} accept="image/*">
+            {(props) => (
+              <Button variant="default" {...props}>
+                Choose receipt image
+              </Button>
+            )}
+          </FileButton>
+          {status === "working" && <Loader size="sm" />}
+        </Group>
+      )}
       {status === "error" ? (
         <Alert color="red">{message}</Alert>
       ) : (
