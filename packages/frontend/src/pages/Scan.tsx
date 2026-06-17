@@ -3,7 +3,6 @@ import {
   Alert,
   Button,
   Card,
-  FileButton,
   Group,
   Loader,
   Stack,
@@ -13,6 +12,7 @@ import {
 } from "@mantine/core";
 import { uploadReceipt } from "../api.js";
 import CameraCapture from "../camera/CameraCapture.js";
+import ReceiptDropzone from "../input/ReceiptDropzone.js";
 import type { ScanReceiptResponse } from "@receipt-scanner/shared";
 
 export default function Scan() {
@@ -48,17 +48,20 @@ export default function Scan() {
       {mode === "camera" ? (
         <CameraCapture onCapture={handleCapture} onClose={() => setMode("idle")} />
       ) : (
-        <Group>
-          <Button onClick={() => setMode("camera")}>Use camera</Button>
-          <FileButton onChange={handleFile} accept="image/*">
-            {(props) => (
-              <Button variant="default" {...props}>
-                Choose receipt image
-              </Button>
-            )}
-          </FileButton>
-          {status === "working" && <Loader size="sm" />}
-        </Group>
+        <Stack>
+          <Group>
+            <Button onClick={() => setMode("camera")}>Use camera</Button>
+            {status === "working" && <Loader size="sm" />}
+          </Group>
+          <ReceiptDropzone
+            onFile={handleFile}
+            onError={(m) => {
+              setStatus("error");
+              setMessage(m);
+            }}
+            disabled={status === "working"}
+          />
+        </Stack>
       )}
       {status === "error" ? (
         <Alert color="red">{message}</Alert>

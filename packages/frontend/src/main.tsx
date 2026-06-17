@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { Amplify } from "aws-amplify";
 import { ColorSchemeScript, MantineProvider, createTheme } from "@mantine/core";
 import "@mantine/core/styles.css";
+import "@mantine/dropzone/styles.css";
 import AuthGate from "./auth/AuthGate.js";
 
 Amplify.configure({
