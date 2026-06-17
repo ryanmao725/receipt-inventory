@@ -7,6 +7,7 @@ describe("mapSpoonacularResults", () => {
       {
         id: 42,
         title: "Pancakes",
+        image: "https://img.spoonacular.com/recipes/42-312x231.jpg",
         usedIngredients: [{ name: "milk" }],
         missedIngredients: [{ name: "flour" }],
       },
@@ -15,11 +16,17 @@ describe("mapSpoonacularResults", () => {
       {
         id: "42",
         title: "Pancakes",
+        image: "https://img.spoonacular.com/recipes/42-312x231.jpg",
         usedIngredients: ["milk"],
         missedIngredients: ["flour"],
         sourceUrl: "https://spoonacular.com/recipes/pancakes-42",
       },
     ]);
+  });
+
+  it("defaults image to an empty string when absent", () => {
+    const raw = [{ id: 7, title: "Toast", usedIngredients: [], missedIngredients: [] }];
+    expect(mapSpoonacularResults(raw)[0].image).toBe("");
   });
 });
 

@@ -5,6 +5,7 @@ interface SpoonacularIngredient { name: string }
 interface SpoonacularResult {
   id: number;
   title: string;
+  image?: string;
   usedIngredients?: SpoonacularIngredient[];
   missedIngredients?: SpoonacularIngredient[];
 }
@@ -13,6 +14,7 @@ export function mapSpoonacularResults(raw: SpoonacularResult[]): Recipe[] {
   return raw.map((r) => ({
     id: String(r.id),
     title: r.title,
+    image: r.image ?? "",
     usedIngredients: (r.usedIngredients ?? []).map((i) => i.name),
     missedIngredients: (r.missedIngredients ?? []).map((i) => i.name),
     sourceUrl: `https://spoonacular.com/recipes/${r.title.toLowerCase().replace(/\s+/g, "-")}-${r.id}`,

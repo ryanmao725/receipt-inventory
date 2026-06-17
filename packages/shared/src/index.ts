@@ -29,6 +29,7 @@ export interface InventoryItem {
 export interface Recipe {
   id: string;
   title: string;
+  image: string;
   usedIngredients: string[];
   missedIngredients: string[];
   sourceUrl: string;
