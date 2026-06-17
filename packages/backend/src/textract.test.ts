@@ -56,6 +56,74 @@ describe("parseExpense", () => {
     ]);
   });
 
+  it("parses a price with a currency symbol", () => {
+    const output = {
+      ExpenseDocuments: [
+        {
+          LineItemGroups: [
+            {
+              LineItems: [
+                {
+                  LineItemExpenseFields: [
+                    { Type: { Text: "ITEM" }, ValueDetection: { Text: "Milk" } },
+                    { Type: { Text: "PRICE" }, ValueDetection: { Text: "$3.50" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnalyzeExpenseCommandOutput;
+    expect(parseExpense(output)[0].price).toBe(3.5);
+  });
+
+  it("parses a price with a currency symbol and thousands separators", () => {
+    const output = {
+      ExpenseDocuments: [
+        {
+          LineItemGroups: [
+            {
+              LineItems: [
+                {
+                  LineItemExpenseFields: [
+                    { Type: { Text: "ITEM" }, ValueDetection: { Text: "TV" } },
+                    { Type: { Text: "PRICE" }, ValueDetection: { Text: "$1,234.56" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnalyzeExpenseCommandOutput;
+    expect(parseExpense(output)[0].price).toBe(1234.56);
+  });
+
+  it("defaults price to 0 for unparseable values", () => {
+    const output = {
+      ExpenseDocuments: [
+        {
+          LineItemGroups: [
+            {
+              LineItems: [
+                {
+                  LineItemExpenseFields: [
+                    { Type: { Text: "ITEM" }, ValueDetection: { Text: "Mystery" } },
+                    { Type: { Text: "PRICE" }, ValueDetection: { Text: "--" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as AnalyzeExpenseCommandOutput;
+    const price = parseExpense(output)[0].price;
+    expect(Number.isFinite(price)).toBe(true);
+    expect(price).toBe(0);
+  });
+
   it("defaults quantity to 1 for missing or unparseable values", () => {
     const output = {
       ExpenseDocuments: [

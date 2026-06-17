@@ -19,6 +19,18 @@ export async function analyzeReceipt(bucket: string, key: string): Promise<Recei
   return items;
 }
 
+/**
+ * Parses a Textract money string into a finite number. Textract returns prices
+ * like "$3.50" or "$1,234.56"; strip everything except digits, a decimal point,
+ * and a leading minus, then parse. Returns 0 when the result isn't finite so a
+ * NaN can never reach DynamoDB (assumes US "." decimal / "," thousands format).
+ */
+export function parseAmount(text: string | undefined): number {
+  if (!text) return 0;
+  const value = Number.parseFloat(text.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
 /** Maps an AnalyzeExpense response into ReceiptLineItem[]. */
 export function parseExpense(output: AnalyzeExpenseCommandOutput): ReceiptLineItem[] {
   const items: ReceiptLineItem[] = [];
@@ -37,7 +49,7 @@ export function parseExpense(output: AnalyzeExpenseCommandOutput): ReceiptLineIt
           name,
           quantity,
           unit: "unit",
-          price: priceText ? Number.parseFloat(priceText) : 0,
+          price: parseAmount(priceText),
         });
       }
     }
