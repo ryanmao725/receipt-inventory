@@ -1,39 +1,46 @@
 import { useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Group,
-  Loader,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from "@mantine/core";
-import { uploadReceipt } from "../api.js";
+import { Alert, Button, Group, Loader, Stack, Text, Title } from "@mantine/core";
+import { proposeReceipt, commitReceipt } from "../api.js";
 import CameraCapture from "../camera/CameraCapture.js";
 import ReceiptDropzone from "../input/ReceiptDropzone.js";
-import type { ScanReceiptResponse } from "@receipt-scanner/shared";
+import ReceiptReview from "../input/ReceiptReview.js";
+import type { ConfirmedLine, ProposeReceiptResponse } from "@receipt-scanner/shared";
 
 export default function Scan() {
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [result, setResult] = useState<ScanReceiptResponse | null>(null);
+  const [proposal, setProposal] = useState<ProposeReceiptResponse | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<"idle" | "camera">("idle");
 
   const handleFile = async (file: File | null) => {
     if (!file) return;
     setStatus("working");
     setMessage("Uploading and scanning…");
-    setResult(null);
+    setProposal(null);
     try {
-      const res = await uploadReceipt(file);
-      setResult(res);
+      const res = await proposeReceipt(file);
+      setProposal(res);
       setStatus("idle");
-      setMessage(`Added ${res.addedItems.length} item(s) to inventory.`);
+      setMessage(res.proposals.length === 0 ? "No line items found." : "");
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Scan failed");
+    }
+  };
+
+  const handleCommit = async (items: ConfirmedLine[]) => {
+    if (!proposal) return;
+    setSubmitting(true);
+    try {
+      const res = await commitReceipt({ imageS3Key: proposal.imageS3Key, items });
+      setProposal(null);
+      setMessage(`Added ${res.addedItems.length} item(s) to inventory.`);
+    } catch (err) {
+      setStatus("error");
+      setMessage(err instanceof Error ? err.message : "Commit failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -68,24 +75,8 @@ export default function Scan() {
       ) : (
         message !== "" && <Text c="dimmed">{message}</Text>
       )}
-      {result && (
-        <Card withBorder padding="md">
-          <Title order={3} mb="sm">
-            {result.receipt.merchant} — ${result.receipt.total.toFixed(2)}
-          </Title>
-          <Table>
-            <Table.Tbody>
-              {result.receipt.lineItems.map((li, i) => (
-                <Table.Tr key={i}>
-                  <Table.Td>
-                    {li.quantity} × {li.name}
-                  </Table.Td>
-                  <Table.Td ta="right">${li.price.toFixed(2)}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Card>
+      {proposal && proposal.proposals.length > 0 && (
+        <ReceiptReview proposals={proposal.proposals} onCommit={handleCommit} submitting={submitting} />
       )}
     </Stack>
   );

@@ -59,3 +59,33 @@ export interface CreateUploadUrlResponse {
   uploadUrl: string;
   imageS3Key: string;
 }
+
+export interface ProposedLine {
+  rawName: string;
+  canonicalName: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  isFood: boolean;
+  source: "cache" | "claude";
+}
+
+export interface ProposeReceiptResponse {
+  receiptId: string;
+  imageS3Key: string;
+  proposals: ProposedLine[];
+}
+
+export interface ConfirmedLine {
+  rawName: string;
+  canonicalName: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  keep: boolean;
+}
+
+export interface CommitReceiptRequest {
+  imageS3Key: string;
+  items: ConfirmedLine[];
+}

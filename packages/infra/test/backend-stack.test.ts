@@ -10,8 +10,8 @@ function template() {
 }
 
 describe("BackendStack", () => {
-  it("creates two DynamoDB tables", () => {
-    template().resourceCountIs("AWS::DynamoDB::Table", 2);
+  it("creates three DynamoDB tables", () => {
+    template().resourceCountIs("AWS::DynamoDB::Table", 3); // receipts, inventory, normalization cache
   });
 
   it("creates a Cognito user pool", () => {
@@ -40,5 +40,16 @@ describe("BackendStack", () => {
         ]),
       },
     });
+  });
+
+  it("declares the Anthropic SSM parameter", () => {
+    template().hasResourceProperties("AWS::SSM::Parameter", {
+      Name: "/receipt-scanner/anthropic-api-key",
+    });
+  });
+
+  it("exposes the propose and commit routes", () => {
+    template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /receipts/propose" });
+    template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /receipts/commit" });
   });
 });
