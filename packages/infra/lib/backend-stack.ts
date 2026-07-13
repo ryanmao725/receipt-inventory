@@ -48,6 +48,13 @@ export class BackendStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    const normalizationCacheTable = new dynamodb.Table(this, "NormalizationCache", {
+      partitionKey: { name: "userId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "rawKey", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
     // --- Auth ---
     const userPool = new cognito.UserPool(this, "UserPool", {
       selfSignUpEnabled: true,
@@ -67,6 +74,11 @@ export class BackendStack extends Stack {
       stringValue: "REPLACE_ME", // TODO: set the real key out-of-band; do not commit secrets.
     });
 
+    const anthropicParam = new StringParameter(this, "AnthropicKey", {
+      parameterName: "/receipt-scanner/anthropic-api-key",
+      stringValue: "REPLACE_ME", // TODO: set the real key out-of-band; do not commit secrets.
+    });
+
     // --- Compute ---
     const apiFn = new NodejsFunction(this, "ApiFn", {
       runtime: Runtime.NODEJS_20_X,
@@ -77,6 +89,8 @@ export class BackendStack extends Stack {
         INVENTORY_TABLE: inventoryTable.tableName,
         RECEIPTS_BUCKET: receiptsBucket.bucketName,
         SPOONACULAR_PARAM_NAME: spoonacularParam.parameterName,
+        NORMALIZATION_CACHE_TABLE: normalizationCacheTable.tableName,
+        ANTHROPIC_PARAM_NAME: anthropicParam.parameterName,
         LOG_LEVEL: "info",
       },
       bundling: { format: undefined },
@@ -86,6 +100,8 @@ export class BackendStack extends Stack {
     inventoryTable.grantReadWriteData(apiFn);
     receiptsBucket.grantReadWrite(apiFn);
     spoonacularParam.grantRead(apiFn);
+    normalizationCacheTable.grantReadWriteData(apiFn);
+    anthropicParam.grantRead(apiFn);
     apiFn.addToRolePolicy(
       new PolicyStatement({
         actions: ["textract:AnalyzeExpense"],
@@ -109,7 +125,8 @@ export class BackendStack extends Stack {
     const integration = new HttpLambdaIntegration("ApiIntegration", apiFn);
     for (const route of [
       { path: "/receipts/upload-url", methods: [HttpMethod.POST] },
-      { path: "/receipts", methods: [HttpMethod.POST] },
+      { path: "/receipts/propose", methods: [HttpMethod.POST] },
+      { path: "/receipts/commit", methods: [HttpMethod.POST] },
       { path: "/inventory", methods: [HttpMethod.GET] },
       { path: "/inventory/{id}", methods: [HttpMethod.PATCH, HttpMethod.DELETE] },
       { path: "/recipes", methods: [HttpMethod.GET] },
