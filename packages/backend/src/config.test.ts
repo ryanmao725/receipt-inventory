@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GetParameterCommandOutput } from "@aws-sdk/client-ssm";
-import { getSpoonacularApiKey, resetSpoonacularKeyCache } from "./config.js";
+import {
+  getSpoonacularApiKey,
+  resetSpoonacularKeyCache,
+  getAnthropicApiKey,
+  resetAnthropicKeyCache,
+} from "./config.js";
 
 function sendReturning(value: string) {
   return vi.fn(async (): Promise<GetParameterCommandOutput> => ({
@@ -33,5 +38,20 @@ describe("getSpoonacularApiKey", () => {
     delete process.env.SPOONACULAR_PARAM_NAME;
     const send = sendReturning("real-key");
     await expect(getSpoonacularApiKey(send)).rejects.toThrow("SPOONACULAR_PARAM_NAME");
+  });
+});
+
+describe("getAnthropicApiKey", () => {
+  it("resolves the parameter value from SSM and caches it", async () => {
+    process.env.ANTHROPIC_PARAM_NAME = "/receipt-scanner/anthropic-api-key";
+    resetAnthropicKeyCache();
+    let calls = 0;
+    const send = async () => {
+      calls++;
+      return { Parameter: { Value: "sk-test" }, $metadata: {} };
+    };
+    expect(await getAnthropicApiKey(send)).toBe("sk-test");
+    expect(await getAnthropicApiKey(send)).toBe("sk-test");
+    expect(calls).toBe(1); // second call is a cache hit
   });
 });
