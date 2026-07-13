@@ -4,6 +4,8 @@ import type {
   ListRecipesResponse,
   CreateUploadUrlResponse,
   ScanReceiptResponse,
+  ProposeReceiptResponse,
+  CommitReceiptRequest,
 } from "@receipt-scanner/shared";
 
 const BASE = import.meta.env.VITE_API_URL as string;
@@ -39,14 +41,24 @@ export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
 }
 
-export async function uploadReceipt(file: File): Promise<ScanReceiptResponse> {
+export async function proposeReceipt(file: File): Promise<ProposeReceiptResponse> {
   const { uploadUrl, imageS3Key } = await getUploadUrl();
   await uploadToS3(uploadUrl, file);
-  const res = await fetch(`${BASE}/receipts`, {
+  const res = await fetch(`${BASE}/receipts/propose`, {
     method: "POST",
     headers: await authHeaders(),
     body: JSON.stringify({ imageS3Key }),
   });
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
+  return res.json();
+}
+
+export async function commitReceipt(req: CommitReceiptRequest): Promise<ScanReceiptResponse> {
+  const res = await fetch(`${BASE}/receipts/commit`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`Commit failed: ${res.status}`);
   return res.json();
 }
