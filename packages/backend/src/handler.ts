@@ -3,13 +3,16 @@ import type {
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 import { getUserId } from "./auth.js";
-import { listItems, updateItem, deleteItem, lineItemsToInventory, putItems } from "./inventory.js";
+import { listItems, updateItem, deleteItem, commitInventory } from "./inventory.js";
+import { normalizeLineItems } from "./normalize.js";
+import { putCached } from "./normcache.js";
 import { suggestRecipes } from "./recipes.js";
 import { getSpoonacularApiKey } from "./config.js";
 import { analyzeReceipt } from "./textract.js";
 import { buildReceipt, putReceipt } from "./receipts.js";
 import { createUploadUrl, isOwnedKey, parseReceiptId } from "./upload.js";
 import { log, runWithLogContext } from "./log.js";
+import type { ConfirmedLine } from "@receipt-scanner/shared";
 
 export interface RouteInput {
   method: string;
@@ -58,17 +61,30 @@ export async function route(req: RouteInput): Promise<RouteResult> {
     const { uploadUrl, imageS3Key } = await createUploadUrl(req.userId);
     return json(200, { uploadUrl, imageS3Key });
   }
-  if (req.method === "POST" && req.path === "/receipts") {
+  if (req.method === "POST" && req.path === "/receipts/propose") {
     const imageS3Key: string = JSON.parse(req.body ?? "{}").imageS3Key ?? "";
     if (!imageS3Key) return json(400, { message: "imageS3Key is required" });
     if (!isOwnedKey(req.userId, imageS3Key)) return json(403, { message: "Forbidden" });
     const receiptId = parseReceiptId(imageS3Key);
     const bucket = process.env.RECEIPTS_BUCKET ?? "";
     const lineItems = await analyzeReceipt(bucket, imageS3Key);
+    const proposals = await normalizeLineItems(req.userId, lineItems);
+    return json(200, { receiptId, imageS3Key, proposals });
+  }
+  if (req.method === "POST" && req.path === "/receipts/commit") {
+    const parsed = JSON.parse(req.body ?? "{}");
+    const imageS3Key: string = parsed.imageS3Key ?? "";
+    const items: ConfirmedLine[] = Array.isArray(parsed.items) ? parsed.items : [];
+    if (!imageS3Key) return json(400, { message: "imageS3Key is required" });
+    if (!isOwnedKey(req.userId, imageS3Key)) return json(403, { message: "Forbidden" });
+    const receiptId = parseReceiptId(imageS3Key);
+    // Receipt keeps the RAW names + prices (provenance); inventory gets canonical.
+    const kept = items.filter((i) => i.keep && i.canonicalName.trim() !== "");
+    const lineItems = kept.map((i) => ({ name: i.rawName, quantity: i.quantity, unit: i.unit, price: i.price }));
     const receipt = buildReceipt({ userId: req.userId, receiptId, imageS3Key, lineItems });
     await putReceipt(receipt);
-    const addedItems = lineItemsToInventory(req.userId, receiptId, lineItems);
-    await putItems(addedItems);
+    const addedItems = await commitInventory(req.userId, receiptId, items);
+    await putCached(req.userId, items.map((i) => ({ rawName: i.rawName, canonicalName: i.canonicalName })));
     return json(200, { receipt, addedItems });
   }
   return json(404, { message: "Not found" });
