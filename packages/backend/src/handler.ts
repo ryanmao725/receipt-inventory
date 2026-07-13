@@ -84,7 +84,7 @@ export async function route(req: RouteInput): Promise<RouteResult> {
     const receipt = buildReceipt({ userId: req.userId, receiptId, imageS3Key, lineItems });
     await putReceipt(receipt);
     const addedItems = await commitInventory(req.userId, receiptId, items);
-    await putCached(req.userId, items.map((i) => ({ rawName: i.rawName, canonicalName: i.canonicalName })));
+    await putCached(req.userId, kept.map((i) => ({ rawName: i.rawName, canonicalName: i.canonicalName })));
     return json(200, { receipt, addedItems });
   }
   return json(404, { message: "Not found" });

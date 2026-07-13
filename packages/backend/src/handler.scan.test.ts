@@ -31,6 +31,7 @@ vi.mock("./upload.js", async (importOriginal) => ({
 }));
 
 import { route } from "./handler.js";
+import { putCached } from "./normcache.js";
 
 describe("POST /receipts/upload-url", () => {
   it("returns a presigned url and key", async () => {
@@ -79,7 +80,10 @@ describe("POST /receipts/commit", () => {
       userId: "user-1",
       body: JSON.stringify({
         imageS3Key: "receipts/user-1/r1",
-        items: [{ rawName: "GV LETTUCE", canonicalName: "lettuce", quantity: 2, unit: "unit", price: 1.49, keep: true }],
+        items: [
+          { rawName: "GV LETTUCE", canonicalName: "lettuce", quantity: 2, unit: "unit", price: 1.49, keep: true },
+          { rawName: "BAG FEE", canonicalName: "bag fee", quantity: 1, unit: "unit", price: 0.05, keep: false },
+        ],
       }),
       pathParams: {},
     });
@@ -91,5 +95,7 @@ describe("POST /receipts/commit", () => {
     expect(payload.receipt.total).toBeCloseTo(1.49);
     expect(payload.addedItems).toHaveLength(1);
     expect(payload.addedItems[0].name).toBe("lettuce");
+    // Verify that putCached only receives the kept item, not the dropped fee
+    expect(putCached).toHaveBeenCalledWith("user-1", [{ rawName: "GV LETTUCE", canonicalName: "lettuce" }]);
   });
 });
