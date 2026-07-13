@@ -35,27 +35,3 @@ export async function getSpoonacularApiKey(send: SsmSend = defaultSend): Promise
   cached = res.Parameter?.Value ?? "";
   return cached;
 }
-
-let cachedAnthropic: string | undefined;
-
-/** Test helper: clears the module-level cache. */
-export function resetAnthropicKeyCache(): void {
-  cachedAnthropic = undefined;
-}
-
-/**
- * Resolves the Anthropic API key from SSM (parameter named by
- * ANTHROPIC_PARAM_NAME), caching it for the execution environment's lifetime.
- */
-export async function getAnthropicApiKey(send: SsmSend = defaultSend): Promise<string> {
-  if (cachedAnthropic !== undefined) {
-    log.debug("anthropic key cache hit");
-    return cachedAnthropic;
-  }
-  const name = process.env.ANTHROPIC_PARAM_NAME;
-  if (!name) throw new Error("ANTHROPIC_PARAM_NAME is not set");
-  log.debug({ parameterName: name }, "fetching anthropic key from ssm");
-  const res = await send(new GetParameterCommand({ Name: name }));
-  cachedAnthropic = res.Parameter?.Value ?? "";
-  return cachedAnthropic;
-}

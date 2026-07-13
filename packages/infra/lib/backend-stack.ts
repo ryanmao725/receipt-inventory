@@ -74,11 +74,6 @@ export class BackendStack extends Stack {
       stringValue: "REPLACE_ME", // TODO: set the real key out-of-band; do not commit secrets.
     });
 
-    const anthropicParam = new StringParameter(this, "AnthropicKey", {
-      parameterName: "/receipt-scanner/anthropic-api-key",
-      stringValue: "REPLACE_ME", // TODO: set the real key out-of-band; do not commit secrets.
-    });
-
     // --- Compute ---
     const apiFn = new NodejsFunction(this, "ApiFn", {
       runtime: Runtime.NODEJS_20_X,
@@ -90,7 +85,6 @@ export class BackendStack extends Stack {
         RECEIPTS_BUCKET: receiptsBucket.bucketName,
         SPOONACULAR_PARAM_NAME: spoonacularParam.parameterName,
         NORMALIZATION_CACHE_TABLE: normalizationCacheTable.tableName,
-        ANTHROPIC_PARAM_NAME: anthropicParam.parameterName,
         LOG_LEVEL: "info",
       },
       bundling: { format: undefined },
@@ -101,11 +95,21 @@ export class BackendStack extends Stack {
     receiptsBucket.grantReadWrite(apiFn);
     spoonacularParam.grantRead(apiFn);
     normalizationCacheTable.grantReadWriteData(apiFn);
-    anthropicParam.grantRead(apiFn);
     apiFn.addToRolePolicy(
       new PolicyStatement({
         actions: ["textract:AnalyzeExpense"],
         resources: ["*"],
+      }),
+    );
+    // Line-item normalization calls Claude Haiku on Bedrock (no API key — the
+    // Lambda role authorizes InvokeModel). Requires Bedrock model access to be
+    // enabled for the model in this account/region.
+    apiFn.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-4-5`,
+        ],
       }),
     );
 

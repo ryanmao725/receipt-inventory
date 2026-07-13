@@ -42,9 +42,13 @@ describe("BackendStack", () => {
     });
   });
 
-  it("declares the Anthropic SSM parameter", () => {
-    template().hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/receipt-scanner/anthropic-api-key",
+  it("grants the API function Bedrock InvokeModel for normalization", () => {
+    template().hasResourceProperties("AWS::IAM::Policy", {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({ Action: "bedrock:InvokeModel" }),
+        ]),
+      },
     });
   });
 

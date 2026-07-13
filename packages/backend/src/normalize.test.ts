@@ -48,7 +48,6 @@ describe("normalizeLineItems", () => {
     const callClaude = vi.fn();
     const result = await normalizeLineItems("user-1", lines, {
       getCachedFn: async () => new Map([["GV LETTUCE", "lettuce"], ["365 ROMAINE", "romaine lettuce"]]),
-      getApiKey: async () => "sk-test",
       callClaude,
     });
     expect(callClaude).not.toHaveBeenCalled();
@@ -73,7 +72,6 @@ describe("normalizeLineItems", () => {
     );
     const result = await normalizeLineItems("user-1", lines, {
       getCachedFn: async () => new Map(),
-      getApiKey: async () => "sk-test",
       callClaude,
     });
     expect(callClaude).toHaveBeenCalledTimes(1);
@@ -81,15 +79,17 @@ describe("normalizeLineItems", () => {
     expect(result[0].canonicalName).toBe("lettuce");
   });
 
-  it("degrades to raw names when the key is unset", async () => {
-    const callClaude = vi.fn();
+  it("degrades to raw names when the Claude call fails", async () => {
+    const callClaude = vi.fn(async () => {
+      throw new Error("AccessDeniedException: bedrock model access not enabled");
+    });
     const result = await normalizeLineItems("user-1", lines, {
       getCachedFn: async () => new Map(),
-      getApiKey: async () => "REPLACE_ME",
       callClaude,
     });
-    expect(callClaude).not.toHaveBeenCalled();
+    expect(callClaude).toHaveBeenCalledTimes(1);
     expect(result[0].canonicalName).toBe("GV LETTUCE");
     expect(result[0].isFood).toBe(true);
+    expect(result[0].source).toBe("claude");
   });
 });
