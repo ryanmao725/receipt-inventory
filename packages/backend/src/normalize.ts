@@ -1,10 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import type { ReceiptLineItem, ProposedLine } from "@receipt-scanner/shared";
 import { getCached } from "./normcache.js";
-import { getAnthropicApiKey } from "./config.js";
 import { log } from "./log.js";
 
-const MODEL = "claude-haiku-4-5";
+// Bedrock model IDs take the `anthropic.` prefix; auth comes from the Lambda's
+// IAM role (bedrock:InvokeModel), and the region from the AWS_REGION env var.
+const MODEL = "anthropic.claude-haiku-4-5";
 
 export interface NormalizedName {
   rawName: string;
@@ -63,29 +64,25 @@ export function parseNormalizationResponse(text: string, rawNames: string[]): No
 export type CallClaude = (prompt: string) => Promise<string>;
 
 const defaultCallClaude: CallClaude = async (prompt) => {
-  const apiKey = await getAnthropicApiKey();
-  const client = new Anthropic({ apiKey });
+  const client = new AnthropicBedrockMantle({ awsRegion: process.env.AWS_REGION });
   const res = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });
-  return res.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
+  return res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 };
 
 export interface NormalizeDeps {
   callClaude?: CallClaude;
-  getApiKey?: () => Promise<string>;
   getCachedFn?: typeof getCached;
 }
 
 /**
  * Normalizes receipt line items to canonical ingredients. Cache hits resolve for
- * free; misses go to Claude in one batched call. Degrades to raw names (isFood
- * true, source "claude") when the API key is unset, so proposals never fail hard.
+ * free; misses go to Claude (Bedrock) in one batched call. If the Bedrock call
+ * fails (e.g. model access not yet enabled), it degrades to raw names (isFood
+ * true, source "claude") so proposals never fail hard.
  */
 export async function normalizeLineItems(
   userId: string,
@@ -93,7 +90,6 @@ export async function normalizeLineItems(
   deps: NormalizeDeps = {},
 ): Promise<ProposedLine[]> {
   const callClaude = deps.callClaude ?? defaultCallClaude;
-  const getApiKey = deps.getApiKey ?? getAnthropicApiKey;
   const getCachedFn = deps.getCachedFn ?? getCached;
 
   const cached = await getCachedFn(userId, lines.map((l) => l.name));
@@ -101,13 +97,12 @@ export async function normalizeLineItems(
   const normalized = new Map<string, NormalizedName>();
 
   if (misses.length > 0) {
-    const apiKey = await getApiKey();
-    if (apiKey && apiKey !== "REPLACE_ME") {
-      const missNames = misses.map((l) => l.name);
+    const missNames = misses.map((l) => l.name);
+    try {
       const text = await callClaude(buildNormalizationPrompt(missNames));
       for (const n of parseNormalizationResponse(text, missNames)) normalized.set(n.rawName, n);
-    } else {
-      log.warn("anthropic key not set; returning raw names unnormalized");
+    } catch (err) {
+      log.warn({ err }, "normalization call failed; returning raw names unnormalized");
     }
   }
 
