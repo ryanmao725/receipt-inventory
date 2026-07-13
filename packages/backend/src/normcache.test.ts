@@ -28,7 +28,7 @@ describe("getCached", () => {
 
 describe("putCached", () => {
   it("writes one deduped item per canonical raw key", async () => {
-    const send = vi.fn(async () => ({}));
+    const send = vi.fn(async (_command: unknown) => ({}));
     process.env.NORMALIZATION_CACHE_TABLE = "cache-table";
     await putCached(
       "user-1",
