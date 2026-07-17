@@ -12,10 +12,13 @@ import {
   Title,
 } from "@mantine/core";
 import { getRecipes } from "../api.js";
+import CookRecipeModal from "../recipes/CookRecipeModal.js";
 import type { Recipe } from "@receipt-scanner/shared";
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
+  const [cooking, setCooking] = useState<Recipe | null>(null);
+  const [message, setMessage] = useState("");
   useEffect(() => {
     getRecipes()
       .then((r) => setRecipes(r.recipes))
@@ -25,6 +28,7 @@ export default function Recipes() {
   return (
     <Stack>
       <Title order={2}>Recipe suggestions</Title>
+      {message && <Text c="dimmed">{message}</Text>}
       {recipes === null ? (
         <Loader size="sm" />
       ) : recipes.length === 0 ? (
@@ -80,9 +84,24 @@ export default function Recipes() {
               >
                 View recipe
               </Button>
+              {r.usedIngredients.length > 0 && (
+                <Button variant="subtle" fullWidth mt="xs" onClick={() => setCooking(r)}>
+                  I cooked this
+                </Button>
+              )}
             </Card>
           ))}
         </SimpleGrid>
+      )}
+      {cooking && (
+        <CookRecipeModal
+          key={cooking.id}
+          title={cooking.title}
+          usedIngredients={cooking.usedIngredients}
+          opened={cooking !== null}
+          onClose={() => setCooking(null)}
+          onDone={setMessage}
+        />
       )}
     </Stack>
   );

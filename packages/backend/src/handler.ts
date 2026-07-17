@@ -3,7 +3,7 @@ import type {
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 import { getUserId } from "./auth.js";
-import { listItems, updateItem, deleteItem, commitInventory } from "./inventory.js";
+import { listItems, updateItem, deleteItem, commitInventory, consumeItem, slug } from "./inventory.js";
 import { normalizeLineItems } from "./normalize.js";
 import { putCached } from "./normcache.js";
 import { suggestRecipes } from "./recipes.js";
@@ -40,6 +40,38 @@ export async function route(req: RouteInput): Promise<RouteResult> {
 
   if (req.method === "GET" && req.path === "/inventory") {
     return json(200, { items: await listItems(req.userId) });
+  }
+  // Batch consume from a recipe: deduct each ingredient (resolved by canonical
+  // slug) from inventory. Checked before the single /{id}/consume route so the
+  // exact path doesn't fall through to it.
+  if (req.method === "POST" && req.path === "/inventory/consume") {
+    const raw = JSON.parse(req.body ?? "{}").items;
+    const items: { ingredient: string; amount: number }[] = Array.isArray(raw) ? raw : [];
+    const used: string[] = [];
+    const removed: string[] = [];
+    const notFound: string[] = [];
+    for (const it of items) {
+      const ingredient = typeof it?.ingredient === "string" ? it.ingredient : "";
+      const amount = Number(it?.amount);
+      if (!ingredient || !Number.isFinite(amount) || amount <= 0) continue;
+      const result = await consumeItem(req.userId, slug(ingredient), amount);
+      if (result.status === "updated") used.push(ingredient);
+      else if (result.status === "removed") {
+        used.push(ingredient);
+        removed.push(ingredient);
+      } else notFound.push(ingredient);
+    }
+    return json(200, { used, removed, notFound });
+  }
+  // Consume an amount of a single inventory item; removed when it hits zero.
+  if (req.method === "POST" && req.path.startsWith("/inventory/") && req.path.endsWith("/consume")) {
+    const amount = Number(JSON.parse(req.body ?? "{}").amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return json(400, { message: "amount must be a positive number" });
+    }
+    const result = await consumeItem(req.userId, req.pathParams.id ?? "", amount);
+    if (result.status === "not_found") return json(404, { message: "Not found" });
+    return json(200, { item: result.status === "updated" ? result.item : null });
   }
   if (req.method === "PATCH" && req.path.startsWith("/inventory/")) {
     const id = req.pathParams.id ?? "";

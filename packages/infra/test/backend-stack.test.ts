@@ -56,4 +56,9 @@ describe("BackendStack", () => {
     template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /receipts/propose" });
     template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /receipts/commit" });
   });
+
+  it("exposes the consume routes", () => {
+    template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /inventory/{id}/consume" });
+    template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /inventory/consume" });
+  });
 });

@@ -6,6 +6,9 @@ import type {
   ScanReceiptResponse,
   ProposeReceiptResponse,
   CommitReceiptRequest,
+  ConsumeInventoryItemResponse,
+  ConsumeIngredientsRequest,
+  ConsumeIngredientsResponse,
 } from "@receipt-scanner/shared";
 
 const BASE = import.meta.env.VITE_API_URL as string;
@@ -60,5 +63,38 @@ export async function commitReceipt(req: CommitReceiptRequest): Promise<ScanRece
     body: JSON.stringify(req),
   });
   if (!res.ok) throw new Error(`Commit failed: ${res.status}`);
+  return res.json();
+}
+
+export async function consumeItem(
+  itemId: string,
+  amount: number,
+): Promise<ConsumeInventoryItemResponse> {
+  const res = await fetch(`${BASE}/inventory/${encodeURIComponent(itemId)}/consume`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  if (!res.ok) throw new Error(`Could not use item: ${res.status}`);
+  return res.json();
+}
+
+export async function removeItem(itemId: string): Promise<void> {
+  const res = await fetch(`${BASE}/inventory/${encodeURIComponent(itemId)}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Could not remove item: ${res.status}`);
+}
+
+export async function cookRecipe(
+  items: ConsumeIngredientsRequest["items"],
+): Promise<ConsumeIngredientsResponse> {
+  const res = await fetch(`${BASE}/inventory/consume`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error(`Could not update inventory: ${res.status}`);
   return res.json();
 }
