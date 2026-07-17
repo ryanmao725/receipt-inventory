@@ -123,3 +123,48 @@ export async function commitInventory(
   }
   return [...byId.values()];
 }
+
+export type ConsumeResult =
+  | { status: "updated"; item: InventoryItem }
+  | { status: "removed" }
+  | { status: "not_found" };
+
+/**
+ * Decrements an inventory item by `amount`. Atomic `ADD quantity` guarded by
+ * attribute_exists so a deleted row is never resurrected. When the resulting
+ * quantity reaches zero (or below), the item is fully consumed and removed.
+ * Returns which of the three outcomes happened.
+ */
+export async function consumeItem(
+  userId: string,
+  itemId: string,
+  amount: number,
+  now: () => string = () => new Date().toISOString(),
+  send: UpdateSend = (command) => doc.send(command as never) as ReturnType<UpdateSend>,
+  del: (userId: string, itemId: string) => Promise<void> = deleteItem,
+): Promise<ConsumeResult> {
+  let res;
+  try {
+    res = await send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { userId, itemId },
+        UpdateExpression: "SET updatedAt = :now ADD quantity :neg",
+        ConditionExpression: "attribute_exists(itemId)",
+        ExpressionAttributeValues: { ":now": now(), ":neg": -amount },
+        ReturnValues: "ALL_NEW",
+      }),
+    );
+  } catch (err) {
+    if ((err as { name?: string }).name === "ConditionalCheckFailedException") {
+      return { status: "not_found" };
+    }
+    throw err;
+  }
+  const item = (res.Attributes ?? {}) as unknown as InventoryItem;
+  if (item.quantity <= 0) {
+    await del(userId, itemId);
+    return { status: "removed" };
+  }
+  return { status: "updated", item };
+}

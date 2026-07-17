@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lineItemsToInventory, slug, commitInventory } from "./inventory.js";
+import { lineItemsToInventory, slug, commitInventory, consumeItem } from "./inventory.js";
 import type { ReceiptLineItem, ConfirmedLine } from "@receipt-scanner/shared";
 import { vi } from "vitest";
 
@@ -60,5 +60,43 @@ describe("commitInventory", () => {
     expect(send).toHaveBeenCalledTimes(2); // two ADD updates to the same key
     expect(result).toHaveLength(1); // deduped in the response
     expect(result[0].itemId).toBe("lettuce");
+  });
+});
+
+describe("consumeItem", () => {
+  it("decrements and returns the updated item when quantity stays positive", async () => {
+    const send = vi.fn(async (_command: unknown) => ({
+      Attributes: { userId: "u", itemId: "lettuce", name: "lettuce", quantity: 1, unit: "unit", sourceReceiptId: null, updatedAt: "t" },
+    }));
+    const del = vi.fn(async () => {});
+    const result = await consumeItem("u", "lettuce", 2, () => "t", send as never, del);
+    expect(result).toEqual({
+      status: "updated",
+      item: { userId: "u", itemId: "lettuce", name: "lettuce", quantity: 1, unit: "unit", sourceReceiptId: null, updatedAt: "t" },
+    });
+    expect(del).not.toHaveBeenCalled();
+    const cmd = (send.mock.calls[0][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+    expect(cmd.UpdateExpression).toContain("ADD quantity :neg");
+    expect(cmd.ExpressionAttributeValues[":neg"]).toBe(-2);
+  });
+
+  it("removes the item and returns removed when quantity reaches zero", async () => {
+    const send = vi.fn(async (_command: unknown) => ({
+      Attributes: { userId: "u", itemId: "lettuce", name: "lettuce", quantity: 0, unit: "unit", sourceReceiptId: null, updatedAt: "t" },
+    }));
+    const del = vi.fn(async () => {});
+    const result = await consumeItem("u", "lettuce", 5, () => "t", send as never, del);
+    expect(result).toEqual({ status: "removed" });
+    expect(del).toHaveBeenCalledWith("u", "lettuce");
+  });
+
+  it("returns not_found when the item does not exist", async () => {
+    const send = vi.fn(async (_command: unknown) => {
+      throw Object.assign(new Error("conditional failed"), { name: "ConditionalCheckFailedException" });
+    });
+    const del = vi.fn(async () => {});
+    const result = await consumeItem("u", "ghost", 1, () => "t", send as never, del);
+    expect(result).toEqual({ status: "not_found" });
+    expect(del).not.toHaveBeenCalled();
   });
 });

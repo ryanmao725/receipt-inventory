@@ -89,3 +89,21 @@ export interface CommitReceiptRequest {
   imageS3Key: string;
   items: ConfirmedLine[];
 }
+
+export interface ConsumeInventoryItemRequest {
+  amount: number;
+}
+
+export interface ConsumeInventoryItemResponse {
+  item: InventoryItem | null; // null when the item was fully consumed and removed
+}
+
+export interface ConsumeIngredientsRequest {
+  items: { ingredient: string; amount: number }[];
+}
+
+export interface ConsumeIngredientsResponse {
+  used: string[];
+  removed: string[];
+  notFound: string[];
+}

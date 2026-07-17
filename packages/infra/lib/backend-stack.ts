@@ -133,6 +133,8 @@ export class BackendStack extends Stack {
       { path: "/receipts/commit", methods: [HttpMethod.POST] },
       { path: "/inventory", methods: [HttpMethod.GET] },
       { path: "/inventory/{id}", methods: [HttpMethod.PATCH, HttpMethod.DELETE] },
+      { path: "/inventory/{id}/consume", methods: [HttpMethod.POST] },
+      { path: "/inventory/consume", methods: [HttpMethod.POST] },
       { path: "/recipes", methods: [HttpMethod.GET] },
     ]) {
       httpApi.addRoutes({ path: route.path, methods: route.methods, integration, authorizer });
