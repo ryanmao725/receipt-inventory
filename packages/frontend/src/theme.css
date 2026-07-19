@@ -1,0 +1,33 @@
+/* Warm-paper page background — the identity's base. */
+:root {
+  --mantine-color-body: #f7f1e6;
+  --app-dash: #d8cdb8;
+}
+:root[data-mantine-color-scheme="dark"] {
+  --mantine-color-body: #1b1712;
+  --app-dash: #3a332a;
+}
+
+/* Receipt "signature" utilities, used on the Scan review + monetary numbers. */
+.app-mono {
+  font-family: "Space Mono", ui-monospace, monospace;
+}
+
+.receipt-rule {
+  border: 0;
+  border-top: 2px dashed var(--app-dash);
+  margin: 10px 0;
+}
+
+.receipt-stamp {
+  display: inline-block;
+  border: 2px solid var(--mantine-color-terra-6);
+  color: var(--mantine-color-terra-6);
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  transform: rotate(6deg);
+}

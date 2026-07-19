@@ -42,9 +42,22 @@ export default function Recipes() {
                   <Image src={r.image} h={160} alt={r.title} />
                 </Card.Section>
               )}
-              <Text fw={600} mt="sm" lineClamp={2}>
-                {r.title}
-              </Text>
+              <Group justify="space-between" align="flex-start" mt="sm" wrap="nowrap">
+                <Text
+                  fw={600}
+                  lineClamp={2}
+                  style={{ fontFamily: "var(--mantine-font-family-headings)", fontSize: "1.05rem" }}
+                >
+                  {r.title}
+                </Text>
+                <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+                  <span className="app-mono">{r.usedIngredients.length}</span>/
+                  <span className="app-mono">
+                    {r.usedIngredients.length + r.missedIngredients.length}
+                  </span>{" "}
+                  on hand
+                </Text>
+              </Group>
               {r.usedIngredients.length > 0 && (
                 <Stack gap={2} mt="sm">
                   <Text size="xs" c="dimmed">
@@ -52,7 +65,7 @@ export default function Recipes() {
                   </Text>
                   <Group gap={4}>
                     {r.usedIngredients.map((ing, i) => (
-                      <Badge key={i} variant="light" color="teal">
+                      <Badge key={i} variant="light" color="leaf">
                         {ing}
                       </Badge>
                     ))}
@@ -66,7 +79,7 @@ export default function Recipes() {
                   </Text>
                   <Group gap={4}>
                     {r.missedIngredients.map((ing, i) => (
-                      <Badge key={i} variant="light" color="red">
+                      <Badge key={i} variant="light" color="terra">
                         {ing}
                       </Badge>
                     ))}
