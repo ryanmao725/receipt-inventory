@@ -38,8 +38,8 @@ export default function App() {
           Sign out
         </Button>
       </Group>
-      <Tabs value={tab} onChange={setTab}>
-        <Tabs.List mb="md">
+      <Tabs value={tab} onChange={setTab} variant="pills" radius="xl" color="leaf">
+        <Tabs.List mb="lg">
           <Tabs.Tab value="scan">Scan</Tabs.Tab>
           <Tabs.Tab value="inventory">Inventory</Tabs.Tab>
           <Tabs.Tab value="recipes">Recipes</Tabs.Tab>
