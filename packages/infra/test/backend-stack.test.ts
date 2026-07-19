@@ -57,6 +57,16 @@ describe("BackendStack", () => {
     template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /receipts/commit" });
   });
 
+  it("gives the API function enough time and memory for Textract + Bedrock", () => {
+    // The propose flow runs Textract AnalyzeExpense + a Bedrock Claude call,
+    // which exceed the CDK default 3s/128MB and time out. Give it headroom
+    // (29s stays under the API Gateway HTTP API 30s integration cap).
+    template().hasResourceProperties("AWS::Lambda::Function", {
+      Timeout: 29,
+      MemorySize: 512,
+    });
+  });
+
   it("exposes the consume routes", () => {
     template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /inventory/{id}/consume" });
     template().hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: "POST /inventory/consume" });
