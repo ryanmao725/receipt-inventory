@@ -4,3 +4,4 @@ cdk.out/
 *.tsbuildinfo
 .env
 .DS_Store
+.superpowers/
