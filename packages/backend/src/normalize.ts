@@ -1,12 +1,15 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import type { ReceiptLineItem, ProposedLine } from "@receipt-scanner/shared";
 import { getCached } from "./normcache.js";
 import { log } from "./log.js";
 
-// Claude Haiku 4.5 on Bedrock is inference-profile-only (no on-demand), so it
-// must be invoked via its cross-region US inference profile. Auth + region come
+// Interim model: Amazon Nova Lite, invoked through the Bedrock Converse API.
+// Nova is available on-demand with no Anthropic use-case form (Claude Haiku on
+// Bedrock requires that form + an inference profile). Converse is model-agnostic,
+// so switching back to Claude later is just a model-id change here (Claude's
+// profile id: "us.anthropic.claude-haiku-4-5-20251001-v1:0"). Auth + region come
 // from the Lambda's IAM role via the standard AWS SDK credential chain.
-const MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+const MODEL = "amazon.nova-lite-v1:0";
 const bedrock = new BedrockRuntimeClient({});
 
 export interface NormalizedName {
@@ -65,30 +68,15 @@ export function parseNormalizationResponse(text: string, rawNames: string[]): No
 
 export type CallClaude = (prompt: string) => Promise<string>;
 
-interface BedrockContentBlock {
-  type: string;
-  text?: string;
-}
-
 const defaultCallClaude: CallClaude = async (prompt) => {
   const res = await bedrock.send(
-    new InvokeModelCommand({
+    new ConverseCommand({
       modelId: MODEL,
-      contentType: "application/json",
-      accept: "application/json",
-      body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      messages: [{ role: "user", content: [{ text: prompt }] }],
+      inferenceConfig: { maxTokens: 1024 },
     }),
   );
-  const decoded = JSON.parse(new TextDecoder().decode(res.body)) as {
-    content?: BedrockContentBlock[];
-  };
-  return (decoded.content ?? [])
-    .map((b) => (b.type === "text" ? (b.text ?? "") : ""))
-    .join("");
+  return (res.output?.message?.content ?? []).map((b) => b.text ?? "").join("");
 };
 
 export interface NormalizeDeps {
