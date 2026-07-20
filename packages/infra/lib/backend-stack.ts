@@ -1,4 +1,4 @@
-import { Stack, type StackProps, RemovalPolicy, CfnOutput } from "aws-cdk-lib";
+import { Stack, type StackProps, RemovalPolicy, CfnOutput, Duration } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
@@ -79,6 +79,12 @@ export class BackendStack extends Stack {
       runtime: Runtime.NODEJS_20_X,
       entry: join(__dirname, "../../backend/src/handler.ts"),
       handler: "handler",
+      // POST /receipts/propose runs Textract AnalyzeExpense + a Bedrock Claude
+      // call, which blow past the CDK default 3s and time out. 29s stays under
+      // the API Gateway HTTP API 30s integration cap; 512MB also raises CPU so
+      // those calls (and cold starts) run faster.
+      timeout: Duration.seconds(29),
+      memorySize: 512,
       environment: {
         RECEIPTS_TABLE: receiptsTable.tableName,
         INVENTORY_TABLE: inventoryTable.tableName,
