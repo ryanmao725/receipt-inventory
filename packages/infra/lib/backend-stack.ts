@@ -108,13 +108,16 @@ export class BackendStack extends Stack {
       }),
     );
     // Line-item normalization calls Claude Haiku on Bedrock (no API key — the
-    // Lambda role authorizes InvokeModel). Requires Bedrock model access to be
-    // enabled for the model in this account/region.
+    // Lambda role authorizes InvokeModel). The model is inference-profile-only,
+    // invoked via the cross-region US profile, so the role needs InvokeModel on
+    // both the profile and the underlying foundation model in each routed region
+    // (region wildcard). Requires Bedrock model access enabled in the account.
     apiFn.addToRolePolicy(
       new PolicyStatement({
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-4-5`,
+          `arn:aws:bedrock:*:${this.account}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
         ],
       }),
     );
